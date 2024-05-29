@@ -29,18 +29,27 @@ export default function RenderItem({ item: tweet }) {
   const [showAddComment, setShowAddComment] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [remainingComments, setRaimainingComments] = useState([]);
+  const [remainingLikes, setRaimainingLikes] = useState([]);
   const [imageLoading, setImageLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(true);
   const [offset, setOffset] = useState(0); // Initial offset
+  const [likeOffset,setLikeOffSet] = useState(0)
+  const [showAllLikes,setShowAllLikes] = useState(true)
+  const [remainingLikesButton,setRemainingLikesButton] = useState(true)
   const [loadingComments, setLoadingComments] = useState(false);
+  const [showRemainingLikes, setShowRemainingLikes] = useState(false);
+  const [hideRemainingLikes, setHideRemainingLikes] = useState(true);
+  const [loadingMoreLikes, setLoadingMoreLikes] = useState(false);
   const [showRemaining, setShowRemaining] = useState(true);
   const [hideRemaining, setHideRemaining] = useState(true);
+  const [loadingLikes,setLoadingLikes] = useState(false)
   const [likes,setLikes] = useState([])
   const { user } = useContext(AuthContext);
   const router = useRouter();
   const screenWidth = Dimensions.get("window").width;
   const mediaWidth = screenWidth - 20; // 10 padding on each side
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
+
   const [likesModalVisible, setLikesModalVisible] = useState(false);
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [likesList, setLikesList] = useState([]);
@@ -67,6 +76,35 @@ export default function RenderItem({ item: tweet }) {
       console.error("Error liking the tweet:", error);
     }
   };
+
+  const getAllLikes = async (newOffset) => {
+    setLoadingLikes(true);
+    try {
+      axiosConfig.defaults.headers.common[
+        "Authorization"
+      ] = `Bearer ${user.token}`;
+
+      const response = await axiosConfig.post("/likes", {
+        params: {
+          post_id: tweet.id,
+          offset: newOffset,
+        },
+      });
+
+      if (newOffset === 0) {
+        setLikes(response.data);
+      } else {
+        setLikes((prevLikes) => [...prevLikes, ...response.data]);
+      }
+      setLikeOffSet(newOffset);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    } finally {
+      setLoadingLikes(false);
+      setLoadingMoreLikes(false);
+    }
+  };
+
 
   
 
@@ -95,6 +133,28 @@ export default function RenderItem({ item: tweet }) {
     } finally {
       setLoadingComments(false);
       setLoadingMoreComments(false);
+    }
+  };
+  const getRemainingLikes = async (newOffset) => {
+    setLoadingLikes(true);
+    try {
+      axiosConfig.defaults.headers.common[
+        "Authorization"
+      ] = `Bearer ${user.token}`;
+
+      const response = await axiosConfig.post("/likes", {
+        params: {
+          post_id: tweet.id,
+          offset: newOffset,
+        },
+      });
+
+      setRaimainingLikes(response.data);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    } finally {
+     setLoadingLikes(false);
+      setLoadingMoreLikes(false);
     }
   };
 
@@ -209,9 +269,21 @@ export default function RenderItem({ item: tweet }) {
     setLoadingMoreComments(true);
     await getRemainingComments(offset + 5); // Load more comments by incrementing offset by 5
   };
-
+  const handleViewAllLikes = async () => {
+    setLoadingMoreLikes(true);
+    await getRemainingLikes(offset + 5); // Load more comments by incrementing offset by 5
+  };
+  const handleResetLikes = async ()=>{
+    await getAllLikes(0)
+    await getRemainingLikes(0)
+  }
+  const handleResetComments = async()=>{
+    await getAllComments(0)
+    await getRemainingComments(0)
+  }
   // console.log("tweet,tweet",tweet)
-  console.log("commentssss", remainingComments);
+  // console.log("commentssss", remainingComments);
+  console.log("remainigLikes",remainingLikes)
   return (
     <>
       <SafeAreaView>
@@ -273,9 +345,10 @@ export default function RenderItem({ item: tweet }) {
               </TouchableOpacity>
             </View>
 
+            
             <TouchableOpacity
               style={styles.totalLikes}
-              onPress={fetchLikesList}
+              onPress={()=>{getAllLikes(0);setLikesModalVisible(true)}}
             >
               <Text style={styles.like}>
                 {tweet.total_likes && tweet.total_likes} likes
@@ -287,7 +360,7 @@ export default function RenderItem({ item: tweet }) {
               onPress={() => {
                 setCommentsModalVisible(true);
                 getAllComments(0);
-                setShowRemaining(false);
+                // setShowRemaining(false);
               }}
             >
               <Text style={styles.comments}>
@@ -446,7 +519,7 @@ export default function RenderItem({ item: tweet }) {
 
                     <TouchableOpacity
                       style={styles.closeButton}
-                      onPress={() => setCommentsModalVisible(false)}
+                      onPress={() => {setCommentsModalVisible(false);handleResetComments();setShowRemaining(true)}}
                     >
                       <Text style={styles.closeButtonText}>Close</Text>
                     </TouchableOpacity>
@@ -471,8 +544,139 @@ export default function RenderItem({ item: tweet }) {
               )}
             </View>
           </View>
-
           <Modal
+            visible={likesModalVisible}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setLikesModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>LIKED BY</Text>
+                <View style={styles.horizontalLine} />
+                {console.log("likesss",likes)}
+                {loadingLikes && (
+                      <ActivityIndicator
+                        style={styles.loadingIndicator}
+                        size="small"
+                        color="#0000ff"
+                      />
+                    ) }
+                {showAllLikes && ( <FlatList
+                  data={likes.latest_likes && likes.latest_likes}
+                  keyExtractor={(item) => item.tweet_id}
+                  renderItem={({ item }) => (
+                    <View style={styles.likesContainer}>
+                      {/* {console.log("listLikes",item)} */}
+                      <View style={styles.tweetContainer}>
+                        <Image
+                          style={styles.avatar}
+                          source={{ uri: item.user.image }}
+                        />
+                        <View>
+                          <Text style={styles.tweetName}>
+                            <Text>{item.user.name && item.user.name} </Text>
+
+                            <Text style={styles.likesUsername}>
+                              {" "}
+                              @{item.user_name && item.user_name}{" "}
+                            </Text>
+                            <Text numberOfLines={1} style={styles.tweetHandle}>
+                              {formatDistanceToNowStrict(
+                                new Date(item.created_at && item.created_at),
+                                {
+                                  locale: {
+                                    ...locale,
+                                    formatDistance,
+                                  },
+                                }
+                              )}
+                            </Text>
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                />)}
+               <Text>hello</Text>
+                {!showAllLikes && ( <FlatList
+                  data={remainingLikes.latest_likes && remainingLikes.latest_likes}
+                  keyExtractor={(item) => item.tweet_id}
+                  renderItem={({ item }) => (
+                     
+                    <View style={styles.likesContainer}>
+                      <View style={styles.tweetContainer}>
+                        <Image
+                          style={styles.avatar}
+                          source={{ uri: item.user.image }}
+                        />
+                        <View>
+                          <Text style={styles.tweetName}>
+                            <Text>{item.user.name && item.user.name} </Text>
+
+                            <Text style={styles.likesUsername}>
+                              {" "}
+                              @{item.user_name && item.user_name}{" "}
+                            </Text>
+                            <Text numberOfLines={1} style={styles.tweetHandle}>
+                              {formatDistanceToNowStrict(
+                                new Date(item.created_at && item.created_at),
+                                {
+                                  locale: {
+                                    ...locale,
+                                    formatDistance,
+                                  },
+                                }
+                              )}
+                            </Text>
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                />)}
+                 
+                  {!remainingLikesButton && (
+                      <Text
+                        style={styles.remainigComments}
+                        onPress={() => {
+                          handleViewAllComments();
+                          setShowRemaining(true);
+                        }}
+                      >
+                        {loadingMoreLikes
+                          ? "Loading..."
+                          : `View remaining ${
+                              remainingLikes.remaining_likes || 0
+                            } likes`}
+                      </Text>
+                    )}
+               
+                     {remainingLikesButton && (<Text
+                        style={styles.remainigComments}
+                        onPress={() => {
+                          handleViewAllLikes();
+                         setShowAllLikes(false)
+                         setRemainingLikesButton(false)
+                        }}
+                      >
+                        {loadingMoreLikes
+                          ? "Loading..."
+                          : `View remaining ${
+                              likes.remaining_likes || 0
+                            } likes`}
+                      </Text>)} 
+                  
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => {setLikesModalVisible(false);handleResetLikes();setShowAllLikes(true)}}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+          {/* <Modal
             visible={likesModalVisible}
             transparent={true}
             animationType="slide"
@@ -525,7 +729,7 @@ export default function RenderItem({ item: tweet }) {
                 </TouchableOpacity>
               </View>
             </View>
-          </Modal>
+          </Modal> */}
         </ScrollView>
       </SafeAreaView>
     </>
