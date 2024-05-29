@@ -54,9 +54,9 @@ export default function RenderItem({ item: tweet }) {
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [likesList, setLikesList] = useState([]);
 
-  // useEffect(() => {
-  //   getAllComments(0); // Load initial comments
-  // }, []);
+  useEffect(() => {
+    getAllComments(0); // Load initial comments
+  }, []);
 
   const toggleLike = async () => {
     try {
@@ -359,7 +359,7 @@ export default function RenderItem({ item: tweet }) {
               style={styles.totalComments}
               onPress={() => {
                 setCommentsModalVisible(true);
-                getAllComments(0);
+                getAllComments();
                 // setShowRemaining(false);
               }}
             >
@@ -385,7 +385,7 @@ export default function RenderItem({ item: tweet }) {
                         color="#0000ff"
                       />
                     )}
-                    {!showRemaining && (
+                    {showRemaining && (
                       <FlatList
                         data={
                           comments.latest_comments && comments.latest_comments
@@ -435,7 +435,7 @@ export default function RenderItem({ item: tweet }) {
                       />
                     )}
                     {/* <Text>Hello</Text> */}
-                    {showRemaining && (
+                    {!showRemaining && (
                       <FlatList
                         data={
                           remainingComments.latest_comments &&
@@ -485,7 +485,7 @@ export default function RenderItem({ item: tweet }) {
                         )}
                       />
                     )}
-                    {showRemaining && (
+                    {!showRemaining && (
                       <Text
                         style={styles.remainigComments}
                         onPress={() => {
@@ -598,7 +598,7 @@ export default function RenderItem({ item: tweet }) {
                     </View>
                   )}
                 />)}
-               <Text>hello</Text>
+               
                 {!showAllLikes && ( <FlatList
                   data={remainingLikes.latest_likes && remainingLikes.latest_likes}
                   keyExtractor={(item) => item.tweet_id}
